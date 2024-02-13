@@ -1,3 +1,5 @@
+import numpy as np
+
 from my_os import *
 import pandas as pd
 from scipy.optimize import curve_fit
@@ -20,17 +22,77 @@ class uefe_waveform_interpreter_class:
         self.sort_data_dict()
         self.smoothed_report()
         self.physical_values_report()
+        self.I_dot_report()
+        self.U_res_report()
         try:
             self.OriginLab_report()
         except Exception as ex:
             print(ex)
         self.log_file.close()
 
+    def U_res_report(self):
+        def I_dot_function(time):
+            ret = np.interp(time, self.df_I_dot['us'], self.df_I_dot['kA/us'])
+            return ret
+
+        Tektronix_ylim = np.abs(self.df_Tektronix['kV'].loc[self.df_Tektronix['us'] > 0]).max()
+        I_dot_ylim = np.abs(self.df_I_dot['kA/us'].loc[self.df_I_dot['us'] > 0]).max()
+        L = Tektronix_ylim/I_dot_ylim
+        self.df_U_res = pd.DataFrame({
+            'us': self.df_Tektronix['us'].values,
+            'kV': self.df_Tektronix['kV'].values - L * I_dot_function(self.df_Tektronix['us'].values)
+        })
+        fig, ax = plt.subplots()
+        ax1 = ax.twinx()
+
+        ax.set(
+            xlabel='Time, us',
+            ylabel='Voltage, kV',
+            title='U res comparison',
+            ylim=[-Tektronix_ylim, Tektronix_ylim]
+        )
+        U_res_ylim = np.abs(self.df_U_res['kV'].loc[self.df_U_res['us'] > 0]).max()
+        ax1.set(
+            ylabel='U_res, kV',
+            ylim=[-U_res_ylim, U_res_ylim]
+        )
+        ax.plot(self.df_Tektronix['us'], self.df_Tektronix['kV'])
+        ax1.plot(self.df_U_res['us'], self.df_U_res['kV'], 'r')
+
+        plt.savefig('Report/U_res_comparison.png')
+        plt.show()
+
+    def I_dot_report(self):
+        self.df_I_dot = pd.DataFrame({
+            'us': self.df_Current['us'].values,
+            'kA/us': np.gradient(self.df_Current['kA'].values) / np.gradient(self.df_Current['us'].values)
+        })
+        self.df_I_dot = self.df_I_dot.rolling(self.n_conv, min_periods=1).mean()
+        fig, ax = plt.subplots()
+        ax1 = ax.twinx()
+        Tektronix_ylim = np.abs(self.df_Tektronix['kV'].loc[self.df_Tektronix['us'] > 0]).max()
+        ax.set(
+            xlabel='Time, us',
+            ylabel='Voltage, kV',
+            title='I dot comparison',
+            ylim=[-Tektronix_ylim, Tektronix_ylim]
+        )
+        I_dot_ylim = np.abs(self.df_I_dot['kA/us'].loc[self.df_I_dot['us'] > 0]).max()
+        ax1.set(
+            ylabel='I_dot, kA/us',
+            ylim=[-I_dot_ylim, I_dot_ylim]
+        )
+        ax.plot(self.df_Tektronix['us'], self.df_Tektronix['kV'])
+        ax1.plot(self.df_I_dot['us'], self.df_I_dot['kA/us'], 'r')
+
+        plt.savefig('Report/I_dot_comparison.png')
+        plt.show()
+
     def OriginLab_report(self):
         import originpro as op
         op.new()
         path = os.getcwd()
-        save_name = path + '\\SC_OriginLab_report.opju'
+        save_name = path + '\\UEFE_waveform_OriginLab_report.opju'
         b = op.save(save_name)
         waveform_sheet = op.new_sheet(lname='Waveform')
         current_sheet = op.new_sheet(lname='Current')
@@ -73,7 +135,7 @@ class uefe_waveform_interpreter_class:
         Saves calculated values
         :return:
         """
-        self.df_Current['kA'] = self.df_Current['V'] * self.Rogovski_ampl*1.0e-3
+        self.df_Current['kA'] = self.df_Current['V'] * self.Rogovski_ampl * 1.0e-3
         self.df_Tektronix['kV'] = self.df_Tektronix['V'] * self.Tektronix_VD * 1.0e-3
         fig, ax = plt.subplots()
         ax1 = ax.twinx()
