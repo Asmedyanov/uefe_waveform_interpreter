@@ -24,23 +24,92 @@ class uefe_waveform_interpreter_class:
         self.physical_values_report()
         self.I_dot_report()
         self.U_res_report()
+        self.R_report()
+        self.Power_report()
         try:
             self.OriginLab_report()
         except Exception as ex:
             print(ex)
         self.log_file.close()
+    def Power_report(self):
+        self.df_Power = pd.DataFrame({
+            'us': self.df_U_res['us'].values,
+            'MW': self.df_U_res['kV'] * self.I_function(self.df_U_res['us'].values)
+        })
+        fig, ax = plt.subplots()
+        ax1 = ax.twinx()
+        Tektronix_ylim = np.abs(self.df_Tektronix['kV'].loc[self.df_Tektronix['us'] > 0]).max()
+        ax.set(
+            xlabel='Time, us',
+            ylabel='Voltage, kV',
+            title='Power',
+            ylim=[-Tektronix_ylim, Tektronix_ylim]
+        )
+        Power_ylim = np.abs(self.df_Power['MW'].loc[self.df_Power['us'] > 0]).max()
+        ax1.set(
+            ylabel='Power, MW',
+            ylim=[-Power_ylim, Power_ylim]
+        )
+        ax.plot(self.df_Tektronix['us'], self.df_Tektronix['kV'])
+        ax1.plot(self.df_Power['us'], self.df_Power['MW'], 'r')
+
+        plt.savefig('Report/Power.png')
+        plt.show()
+        self.df_Power.to_excel('Report/Power(MW).xlsx')
+    def R_report(self):
+        self.df_Resistance = pd.DataFrame({
+            'us': self.df_U_res['us'].values,
+            'Ohm': self.df_U_res['kV'] / self.I_function(self.df_U_res['us'].values)
+        })
+        self.df_Resistance['Ohm'] = np.where(self.I_function(self.df_U_res['us'].values) == 0, 0,
+                                             self.df_Resistance['Ohm'].values)
+        fig, ax = plt.subplots()
+        ax1 = ax.twinx()
+        Tektronix_ylim = np.abs(self.df_Tektronix['kV'].loc[self.df_Tektronix['us'] > 0]).max()
+        ax.set(
+            xlabel='Time, us',
+            ylabel='Voltage, kV',
+            title='Resistance',
+            ylim=[-Tektronix_ylim, Tektronix_ylim]
+        )
+        R_ylim = np.abs(self.df_Resistance['Ohm'].loc[self.df_Resistance['us'] > 0]).max()
+        ax1.set(
+            ylabel='R, Ohm',
+            ylim=[-R_ylim, R_ylim]
+        )
+        ax.plot(self.df_Tektronix['us'], self.df_Tektronix['kV'])
+        ax1.plot(self.df_Resistance['us'], self.df_Resistance['Ohm'], 'r')
+
+        plt.savefig('Report/Resistance.png')
+        plt.show()
+        self.df_Resistance.to_excel('Report/R(Ohm).xlsx')
+
+    def I_dot_function(self, time):
+        ret = np.interp(time, self.df_I_dot['us'], self.df_I_dot['kA/us'])
+        return ret
+
+    def Tektronix_function(self, time):
+        ret = np.interp(time, self.df_Tektronix['us'], self.df_Tektronix['kV'])
+        return ret
+
+    def I_function(self, time):
+        noise = np.abs(self.df_Current['kA'].loc[self.df_Current['us'] < 0]).max()
+        clear_I = np.where(np.abs(self.df_Current['kA'].values) < noise, 0, self.df_Current['kA'].values)
+        ret = np.interp(time, self.df_Current['us'].values, clear_I)
+        return ret
 
     def U_res_report(self):
-        def I_dot_function(time):
-            ret = np.interp(time, self.df_I_dot['us'], self.df_I_dot['kA/us'])
-            return ret
-
-        Tektronix_ylim = np.abs(self.df_Tektronix['kV'].loc[self.df_Tektronix['us'] > 0]).max()
-        I_dot_ylim = np.abs(self.df_I_dot['kA/us'].loc[self.df_I_dot['us'] > 0]).max()
-        L = Tektronix_ylim/I_dot_ylim
+        df_Tektronix_to_plot = self.df_Tektronix.loc[self.df_Tektronix['us'] > 0]
+        Tektronix_ylim = np.abs(df_Tektronix_to_plot['kV']).max()
+        df_I_dot_to_plot = self.df_I_dot.loc[self.df_I_dot['us'] > 0]
+        I_dot_ylim = np.abs(df_I_dot_to_plot['kA/us']).max()
+        I_dot_max_index = np.abs(df_I_dot_to_plot['kA/us']).values.argmax()
+        I_dot_max_time = df_I_dot_to_plot['us'].values[I_dot_max_index]
+        Tektronix_I_dot_max = self.Tektronix_function(I_dot_max_time)
+        L = -Tektronix_I_dot_max / I_dot_ylim
         self.df_U_res = pd.DataFrame({
             'us': self.df_Tektronix['us'].values,
-            'kV': self.df_Tektronix['kV'].values - L * I_dot_function(self.df_Tektronix['us'].values)
+            'kV': self.df_Tektronix['kV'].values - L * self.I_dot_function(self.df_Tektronix['us'].values)
         })
         fig, ax = plt.subplots()
         ax1 = ax.twinx()
@@ -61,6 +130,7 @@ class uefe_waveform_interpreter_class:
 
         plt.savefig('Report/U_res_comparison.png')
         plt.show()
+        self.log_file.write(f'inductance is {L:3.2e} uH')
 
     def I_dot_report(self):
         self.df_I_dot = pd.DataFrame({
@@ -87,6 +157,7 @@ class uefe_waveform_interpreter_class:
 
         plt.savefig('Report/I_dot_comparison.png')
         plt.show()
+        self.df_I_dot.to_excel('Report/I_dot(kA_us).xlsx')
 
     def OriginLab_report(self):
         import originpro as op
@@ -94,7 +165,6 @@ class uefe_waveform_interpreter_class:
         path = os.getcwd()
         save_name = path + '\\UEFE_waveform_OriginLab_report.opju'
         b = op.save(save_name)
-        waveform_sheet = op.new_sheet(lname='Waveform')
         current_sheet = op.new_sheet(lname='Current')
         trig_out_sheet = op.new_sheet(lname='Trig_out')
         Systron_sheet = op.new_sheet(lname='Systron')

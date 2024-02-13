@@ -1,3 +1,7 @@
+"""
+underwater foil electrical explosion experiment waveform interpreter
+"""
+
 import uefe_waveform_interpreter_class
 
 
