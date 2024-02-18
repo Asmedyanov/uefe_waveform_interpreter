@@ -71,7 +71,9 @@ def open_folder():
     }
     """
     folder_name = filedialog.askdirectory(
-        initialdir='./example')
+        #initialdir='./example'
+        initialdir='C:/Users/User/OneDrive - Technion/UEWE/Foils/Butterfly_cloud/Butterfly_MAGEN_2024/Processing'
+    )
     os.chdir(folder_name)
     os.makedirs('Report', exist_ok=True)
     files_data = dict()

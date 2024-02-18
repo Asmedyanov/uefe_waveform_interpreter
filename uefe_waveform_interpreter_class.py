@@ -169,7 +169,7 @@ class uefe_waveform_interpreter_class:
         I_dot_max_index = np.abs(df_I_dot_to_plot['kA/us']).values.argmax()
         I_dot_max_time = df_I_dot_to_plot['us'].values[I_dot_max_index]
         Tektronix_I_dot_max = self.Tektronix_function(I_dot_max_time)
-        L = -Tektronix_I_dot_max / self.I_dot_ylim
+        L = Tektronix_I_dot_max / self.I_dot_ylim
         self.df_U_res = pd.DataFrame({
             'us': self.df_Tektronix['us'].values,
             'kV': self.df_Tektronix['kV'].values - L * self.I_dot_function(self.df_Tektronix['us'].values)

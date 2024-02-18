@@ -1,9 +1,9 @@
 I_dot limit is 1125.7612809295106 kA/us;
-Inductance is 2.79e-02 uH;
-U_res limit is 3.20e+00 kV;
-Resistance limit is 0.03979003143603035 Ohm;
+Inductance is -2.79e-02 uH;
+U_res limit is 6.34e+01 kV;
+Resistance limit is 2.3174072785582287 Ohm;
 Mass is 5.22e+01 mg;
-Power limit is 7.61e+02 MW;
-Power per mass limit is 1.46e+01 MW/mg;
-Energy limit is 2.37e+02 J;
-Energy per mass limit is 4.54e+00 J/mg;
+Power limit is 1.26e+04 MW;
+Power per mass limit is 2.41e+02 MW/mg;
+Energy limit is 3.45e+03 J;
+Energy per mass limit is 6.60e+01 J/mg;
